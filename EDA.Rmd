@@ -1,0 +1,43 @@
+---
+title: "EDA Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# loading tables:  assay_component_endpoint table from invitrodb
+# & enrichment data (from Ryan Lougee[unreproducible])
+library(data.table)
+# queried from invitrodb 2020/12/18 14:00 PM
+# read assay_component_endpoint table and its col names
+aeid_table <- fread('aeid_table.txt')
+aeid_table_col <- fread('aeid_table_col.txt')
+# pasting the content instead of cleaning up aeid_table_col
+col_names <- c('aeid', 'acid', 'assay_component_endpoint_name', 'export_ready', 'internal_ready', 'assay_component_endpoint_desc', 'assay_function_type', 'normalized_data_type', 'analysis_direction', 'burst_assay', 'key_positive_control', 'signal_direction', 'intended_target_type', 'intended_target_type_sub', 'intended_target_family', 'intended_target_family_sub', 'fit_all', 'cell_viability_assay', 'data_usability')
+names(aeid_table) <-col_names
+
+# enrichment data
+baseline <- fread("ENRICHMENTS_invitrodb_v3_1_BASELINE_hitc_MC_2019.tsv")
+burst <- fread("ENRICHMENTS_invitrodb_v3_1_BURST_hitc_MC_2019.tsv")
+# extract aeid from 'Assay Name' column in aeid_table
+aeid_table$aeid <- as.character(aeid_table$aeid)
+library(stringr)
+# make new column aeid using str_match
+baseline$aeid <- str_match(baseline$`Assay Name`, ":\\s*(.*?)\\s*_")[,2]
+burst$aeid <- str_match(burst$`Assay Name`, ":\\s*(.*?)\\s*_")[,2]
+# change aeid type to string
+baseli
+# match aenm from aeid_table by aeid
+baseline_aenm <- merge( x = baseline, 
+                        y = aeid_table[, c("aeid", "assay_component_endpoint_name") ],
+                        by = "aeid", all.x = T)
+burst_aenm <- merge( x = burst, 
+                        y = aeid_table[, c("aeid", "assay_component_endpoint_name") ],
+                        by = "aeid", all.x = T)
+
+write.csv(burst_aenm, "burst_aenm.csv")
+write.csv(baseline_aenm, "baseline_aenm.csv")
+
+
+```
+
