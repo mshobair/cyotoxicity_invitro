@@ -66,26 +66,23 @@ names(baseline_txp_table_df) <- c('ToxPrint', 'enriched assay count')
 return(baseline_label_table_df)
 }
 ```
-plot
-```{r}
-#library(ggplot2)
-#
-ggplot(baseline[ordre()]) + geom_bar(aes(x = label))
-#+ 
-# scale_y_continuous("",label=baseline_label_table_df$ToxPrint) + coord_flip()
-
-```
 
 
-Plot is not very useful. density plot can show overall distributio; perhaps label groups of ToxPrint on it to show most promiscuous and leas, etc.n
+
+Future: density plot can show overall distributio; perhaps label groups of ToxPrint on it to show most promiscuous and leas, etc.n
 
 Try wordcloud
+```{r}
+# making instance of baseline table
+baseline_label_table_df <- baseline_table(baseline)
+
+```
 
 ```{r}
 library(wordcloud)
 dev.new(width = 10000, height = 10000, unit = "px")
 set.seed(100)
-wordcloud(baseline_label_table_df$ToxPrint_label, baseline_txp_table_df$`enriched assay count`, min.freq=100, max.words = 10, ,  colors=brewer.pal(6, "Dark2"), scale=c(4,.5), )
+wordcloud(baseline_label_table_df$ToxPrint_label, baseline_label_table_df$`enriched assay count`, min.freq=100, max.words = 10, ,  colors=brewer.pal(6, "Dark2"), scale=c(4,.5), )
 
 ```
 trying wordcloud with ggplot2
@@ -109,12 +106,17 @@ ggplot(baseline_label_table_df_top_10,
 ```
 Making example images
 ```{r}
-tiff(file="OutputImages/baseline_top20_45.tiff")
+# for baseline
+#tiff(file="OutputImages/baseline_top20_45.tiff")
 wordcloud_txp(baseline_table(baseline), 20, 45)
-dev.off()
-tiff(file="OutputImages/burst_top20_45.tiff")
+
+
+```
+```{r}
+#tiff(file="OutputImages/baseline_top20_45.tiff")
+# for burst
 wordcloud_txp(baseline_table(burst), 20, 45)
-dev.off()
+
 
 ```
 Rephrasing research questions:
@@ -216,7 +218,7 @@ ext.line.lwd = 2,
 ext.line.lty = "dashed"
 )
 # Writing to file
-tiff(filename = "OutputImages/burst_baseline_set_diagram.tiff", compression = "lzw")
+#tiff(filename = "OutputImages/burst_baseline_set_diagram.tiff", compression = "lzw")
 grid.draw(venn.plot)
 
 
@@ -249,7 +251,7 @@ plot horizontal bar
 ```{r}
 options(repr.plot.width=8, repr.plot.height=3)
 # order asc
-burst_baseline_count_ordered <- burst_baseline_count[order(relative_change)][c(1:10, 395:405)]
+burst_baseline_count_ordered <- burst_baseline_count[order(relative_change)][1:40]
        
 ggplot(burst_baseline_count_ordered, aes(x = ToxPrint_label, y = relative_change, main="Car Distribution")) +
          geom_bar(stat = "identity") +
@@ -260,5 +262,55 @@ theme(axis.text.x = element_text(face="bold", color="#008000",
           axis.text.y = element_text(face="bold", color="#008000",
                            size=8, angle=0))
 
+
+```
+Re-formatting for making a map to visualize the interactions between assays according to chemotype enrichment profile
+```{r}
+# make two instances of the baeline enrichments of just the aenm and ToxPrint label
+baseline_dup <- baseline_aenm # make a copt of baseline
+names(baseline_dup)[names(baseline_dup) == "assay_component_endpoint_name"] <- "aenm"
+names(baseline_dup)[names(baseline_dup) == "label"] <- "txp_nm"
+baseline_dup_red <- baseline_dup[, c("aenm", "txp_nm")] # isolate the cols
+baseline_dup_red_dip <- baseline_dup_red # make another instance
+names(baseline_dup_red)[names(baseline_dup_red) == "aenm"] <- "aenm1" # rename the aenm 
+names(baseline_dup_red_dip)[names(baseline_dup_red_dip) == "aenm"] <- "aenm2" # rename the aenm 
+# merge the duplicated tables
+baseline_merged_by_txpnm <- merge( x = baseline_dup_red, y = baseline_dup_red_dip, 
+                                   all.x = T, by = "txp_nm", allow.cartesian = T)
+# remove the self links
+baseline_merged_by_txpnm_unique <- baseline_merged_by_txpnm[aenm1!= aenm2]
+write.csv(baseline_merged_by_txpnm_unique, "baseline_merged_by_txpnm_unique.csv")
+write.csv(baseline_merged_by_txpnm_unique[1:1000], "baseline_merged_by_txpnm_unique_first_1000.csv")
+
+
+```
+make a enrichment profile per assay
+
+```{r}
+txp_fp <- fread("txp_fp.csv")
+# make new col on the file
+library(reshape2)
+baseline_dup_red[, n:=1] # dummy variable for presence of feature
+baseline_spread <- reshape2::dcast(baseline_dup_red, aenm1~txp_nm, value.var = "n", fill = 0)
+# 
+
+
+```
+use fingerprint and base packages to calculate Tanimoto similarity and other fingerprint stuff
+
+```{r}
+# inititalize empty matrix
+aenm_mat <- matrix(data = NA, nrow = nrow(baseline_spread), ncol = nrow(baseline_spread), byrow = FALSE,
+            dimnames = list(unique(baseline_spread$aenm1)))
+
+colnames(aenm_mat) <- unique(baseline_spread$aenm1)
+# setup for loop
+for(i in 1:nrow(baseline_spread)){
+  for(j in 1:nrow(baseline_spread)){
+  
+  aenm_mat[i,j] = jaccard(baseline_spread[i, 2:461], baseline_spread[j, 2:461])
+  
+  }
+}
 
 ```
